@@ -1,6 +1,118 @@
-"""Modelos de dominio de las fases 1 y 2."""
+"""Modelos de dominio de las semanas 1 a 3."""
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from abc import ABC, abstractmethod
+from decimal import ROUND_HALF_UP, Decimal, DecimalException
+
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
+
+
+class Email(RootModel[str]):
+    """Correo electrónico inmutable comparable por su valor."""
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("root", mode="before")
+    @classmethod
+    def validar_email(cls, valor: object) -> object:
+        if not isinstance(valor, str):
+            return valor
+        valor = valor.strip()
+        if valor and ("@" not in valor or "." not in valor.rsplit("@", maxsplit=1)[-1]):
+            raise ValueError("El email no tiene un formato válido")
+        if valor.startswith("@"):
+            raise ValueError("El email no tiene un formato válido")
+        return valor
+
+    def __str__(self) -> str:
+        return self.root
+
+    def __repr__(self) -> str:
+        return f"Email({self.root!r})"
+
+    def __eq__(self, otro: object) -> bool:
+        if isinstance(otro, Email):
+            return self.root == otro.root
+        if isinstance(otro, str):
+            return self.root == otro
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.root)
+
+
+class RUC(RootModel[str]):
+    """Cédula o RUC ecuatoriano validado por formato."""
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("root", mode="before")
+    @classmethod
+    def validar_identificacion(cls, valor: object) -> object:
+        if not isinstance(valor, str):
+            return valor
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("La identificación no puede estar vacía")
+        if not valor.isdigit() or len(valor) not in (10, 13):
+            raise ValueError("La identificación debe contener 10 o 13 dígitos")
+        return valor
+
+    def __str__(self) -> str:
+        return self.root
+
+    def __repr__(self) -> str:
+        return f"RUC({self.root!r})"
+
+    def __eq__(self, otro: object) -> bool:
+        if isinstance(otro, RUC):
+            return self.root == otro.root
+        if isinstance(otro, str):
+            return self.root == otro
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.root)
+
+
+class Monto(RootModel[Decimal]):
+    """Importe monetario inmutable, no negativo y con dos decimales."""
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("root", mode="before")
+    @classmethod
+    def validar_monto(cls, valor: object) -> Decimal:
+        try:
+            monto = Decimal(str(valor))
+        except (DecimalException, TypeError, ValueError) as error:
+            raise ValueError("El monto debe ser un número válido") from error
+        if not monto.is_finite():
+            raise ValueError("El monto debe ser finito")
+        if monto < 0:
+            raise ValueError("El monto no puede ser negativo")
+        return monto.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    def __str__(self) -> str:
+        return f"{self.root:.2f}"
+
+    def __repr__(self) -> str:
+        return f"Monto({str(self)!r})"
+
+    def __format__(self, especificacion: str) -> str:
+        return format(self.root, especificacion)
+
+    def __float__(self) -> float:
+        return float(self.root)
+
+    def __eq__(self, otro: object) -> bool:
+        if isinstance(otro, Monto):
+            return self.root == otro.root
+        if isinstance(otro, (Decimal, int, float)) and not isinstance(otro, bool):
+            return self.root == Decimal(str(otro))
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.root)
 
 
 class Producto(BaseModel):
@@ -15,7 +127,7 @@ class Producto(BaseModel):
     codigo: str
     nombre: str
     descripcion: str = ""
-    precio: float = 0.0
+    precio: Monto = Monto(0)
     impuesto_pct: float = 0.0
     activo: bool = True
 
@@ -31,13 +143,6 @@ class Producto(BaseModel):
     def validar_nombre(cls, valor: str) -> str:
         if not valor:
             raise ValueError("El nombre no puede estar vacío")
-        return valor
-
-    @field_validator("precio")
-    @classmethod
-    def validar_precio(cls, valor: float) -> float:
-        if valor < 0:
-            raise ValueError("El precio no puede ser negativo")
         return valor
 
     @field_validator("impuesto_pct")
@@ -91,32 +196,18 @@ class Cliente(BaseModel):
         extra="forbid",
     )
 
-    identificacion: str
+    identificacion: RUC = Field(frozen=True)
     nombre: str
     direccion: str = ""
     telefono: str = ""
-    email: str = ""
+    email: Email = Email("")
     activo: bool = True
-
-    @field_validator("identificacion")
-    @classmethod
-    def validar_identificacion(cls, valor: str) -> str:
-        if not valor:
-            raise ValueError("La identificación no puede estar vacía")
-        return valor
 
     @field_validator("nombre")
     @classmethod
     def validar_nombre(cls, valor: str) -> str:
         if not valor:
             raise ValueError("El nombre no puede estar vacío")
-        return valor
-
-    @field_validator("email")
-    @classmethod
-    def validar_email(cls, valor: str) -> str:
-        if valor and ("@" not in valor or "." not in valor.rsplit("@", maxsplit=1)[-1]):
-            raise ValueError("El email no tiene un formato válido")
         return valor
 
     def resumen(self) -> str:
@@ -126,6 +217,34 @@ class Cliente(BaseModel):
             f"[{self.identificacion}] {self.nombre} - {self.direccion} - "
             f"{self.telefono} - {self.email} - {estado}"
         )
+
+
+class RegistroClientes(ABC):
+    """Contrato para registrar clientes sin repetir su identificación."""
+
+    @abstractmethod
+    def registrar(self, cliente: Cliente) -> None:
+        """Registra un cliente o rechaza una identificación duplicada."""
+
+    @abstractmethod
+    def buscar(self, identificacion: RUC | str) -> Cliente | None:
+        """Busca un cliente por cédula o RUC."""
+
+
+class RegistroClientesEnMemoria(RegistroClientes):
+    """Registro de clientes respaldado por un diccionario en memoria."""
+
+    def __init__(self) -> None:
+        self._clientes: dict[RUC, Cliente] = {}
+
+    def registrar(self, cliente: Cliente) -> None:
+        if cliente.identificacion in self._clientes:
+            raise ValueError(f"ya existe un cliente con identificación {cliente.identificacion}")
+        self._clientes[cliente.identificacion] = cliente
+
+    def buscar(self, identificacion: RUC | str) -> Cliente | None:
+        clave = identificacion if isinstance(identificacion, RUC) else RUC(identificacion)
+        return self._clientes.get(clave)
 
 
 class ItemProforma(BaseModel):
@@ -163,7 +282,7 @@ class ItemProforma(BaseModel):
 
     def subtotal(self) -> float:
         """Calcula el importe después del descuento y antes del impuesto."""
-        importe_bruto = self.producto.precio * self.cantidad
+        importe_bruto = float(self.producto.precio) * self.cantidad
         return importe_bruto * (1 - self.descuento_pct / 100)
 
     def impuesto(self) -> float:
