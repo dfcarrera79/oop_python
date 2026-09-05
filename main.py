@@ -1,117 +1,44 @@
-from collections.abc import Callable
+"""Punto de entrada de la aplicación de consola de la fase 4."""
 
-from pydantic import ValidationError
+import sys
 
-from proformas.modelo import (
-    Cliente,
-    ItemProforma,
-    Producto,
-    ProductoDigital,
-    ProductoFisico,
-    Proforma,
-)
+from proformas.aplicacion import AplicacionProformas
+from proformas.modelo import AtributosFisicos, Cliente, Producto, Talla, TipoCliente
+from proformas.presentacion.formateadores import formatear_detalle_proforma
+from proformas.presentacion.menu import MenuConsola
 
 
-def mostrar_casos_validos() -> None:
-    """Construye y presenta objetos válidos."""
-    print("\nCasos válidos")
-
-    producto_fisico = ProductoFisico(
-        codigo="P-0001",
-        nombre="Laptop Lenovo",
-        precio=850,
-        impuesto_pct=12,
-        peso_kg=1.8,
+def crear_aplicacion_demo() -> AplicacionProformas:
+    """Crea una sesión inicial útil para explorar el menú."""
+    aplicacion = AplicacionProformas()
+    aplicacion.registrar_producto(
+        Producto(
+            codigo="P-0001",
+            nombre="Faja Lumbar",
+            precio=85,
+            iva_pct=15,
+            extras=AtributosFisicos(peso_kg=0.4, talla=Talla.M),
+        )
     )
-    producto_digital = ProductoDigital(
-        codigo="P-0002",
-        nombre="Licencia de ofimática",
-        precio=45,
-        tamanio_mb=750,
+    aplicacion.registrar_cliente(
+        Cliente(
+            identificacion="1100001234",
+            nombre="Ana Torres",
+            email="ana.torres@correo.com",
+            tipo=TipoCliente.MEDICO,
+        )
     )
-    cliente = Cliente(
-        identificacion="1100001234",
-        nombre="Ana Torres",
-        direccion="Av. Loja y Sucre",
-        telefono="0991234567",
-        email="ana.torres@correo.com",
-    )
-    proforma = Proforma(numero="PRO-0001", cliente=cliente)
-    proforma.agregar_item(ItemProforma(producto=producto_fisico, cantidad=1, descuento_pct=5))
-    proforma.agregar_item(ItemProforma(producto=producto_digital, cantidad=2))
-
-    print(producto_fisico.resumen())
-    print(producto_digital.resumen())
-    print(cliente.resumen())
-    print(proforma.resumen())
-    print(f"Subtotal: ${proforma.subtotal():.2f}")
-    print(f"Impuesto: ${proforma.impuesto():.2f}")
-    print(f"Total: ${proforma.total():.2f}")
-
-
-def mostrar_casos_invalidos() -> None:
-    """Demuestra que el dominio rechaza estados inválidos."""
-    print("\nCasos inválidos rechazados")
-    intentos: list[tuple[str, Callable[[], object]]] = [
-        (
-            "precio negativo",
-            lambda: Producto(codigo="P-0003", nombre="Teclado", precio=-10),
-        ),
-        (
-            "impuesto mayor que 100",
-            lambda: Producto(
-                codigo="P-0004",
-                nombre="Monitor",
-                precio=180,
-                impuesto_pct=150,
-            ),
-        ),
-        ("código vacío", lambda: Producto(codigo="", nombre="Mouse")),
-        (
-            "email inválido",
-            lambda: Cliente(
-                identificacion="1100000001",
-                nombre="Luis",
-                email="correo-sin-arroba",
-            ),
-        ),
-        (
-            "cantidad no positiva",
-            lambda: ItemProforma(
-                producto=ProductoDigital(
-                    codigo="P-0005",
-                    nombre="Manual digital",
-                    tamanio_mb=8,
-                ),
-                cantidad=0,
-            ),
-        ),
-        (
-            "producto inactivo",
-            lambda: ItemProforma(
-                producto=ProductoFisico(
-                    codigo="P-0006",
-                    nombre="Monitor descontinuado",
-                    peso_kg=4.2,
-                    activo=False,
-                ),
-                cantidad=1,
-            ),
-        ),
-    ]
-
-    for descripcion, construir in intentos:
-        try:
-            construir()
-        except ValidationError as error:
-            mensaje = error.errors()[0]["msg"]
-            print(f"[ok] {descripcion}: {mensaje}")
+    return aplicacion
 
 
 def main() -> None:
-    print("Sistema de Gestión de Proformas - Fase 2")
-    mostrar_casos_validos()
-    mostrar_casos_invalidos()
+    """Ejecuta el menú o una demostración no interactiva."""
+    aplicacion = crear_aplicacion_demo()
+    if "--demo" in sys.argv:
+        print("Sistema de Gestión de Proformas - Fase 4")
+        print(formatear_detalle_proforma(aplicacion.crear_proforma_demo()))
+        return
+    MenuConsola(aplicacion).ejecutar()
 
 
 if __name__ == "__main__":
