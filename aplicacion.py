@@ -1,6 +1,6 @@
 """Coordinación de la sesión en memoria de la fase 4."""
 
-from proformas.modelo import (
+from proformas.modelos import (
     RUC,
     Cliente,
     Estado,

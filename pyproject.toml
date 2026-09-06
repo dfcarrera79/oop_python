@@ -21,3 +21,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ['I', 'F', 'E', 'W', 'UP', 'B', 'SIM']
+
+[tool.pyright]
+extraPaths = ["."]
+venvPath = "."
+venv = ".venv"
+

@@ -1,4 +1,4 @@
-"""Modelos de dominio de las clases 1 a 4 (re-exportados desde proformas.modelos)."""
+"""Re-exportación de modelos de dominio para src.modelos."""
 
 from proformas.modelos import (
     RUC,
