@@ -1,12 +1,19 @@
 [project]
-name = "oop-python"
-version = "0.1.0"
-description = "Add your description here"
+name = "proformas"
+version = "0.5.0"
+description = "Sistema generico de gestion de proformas (proyecto educativo UDEV0242)"
 readme = "README.md"
+authors = [
+    { name = "dfcarrera79", email = "44879886+dfcarrera79@users.noreply.github.com" }
+]
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.13.4",
 ]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
@@ -14,16 +21,13 @@ dev = [
     "ruff>=0.16.2",
 ]
 
-
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ['I', 'F', 'E', 'W', 'UP', 'B', 'SIM']
+select = ["E", "F", "I", "UP", "B", "SIM"]
 
-[tool.pyright]
-extraPaths = ["."]
-venvPath = "."
-venv = ".venv"
-
+[tool.ruff.format]
+quote-style = "double"
