@@ -1,30 +1,24 @@
-"""Entidad producto y atributos compuestos."""
+"""Entidad producto."""
 
-from dataclasses import dataclass
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from proformas.dominio.enumeraciones import Estado, Talla
+from proformas.dominio.enumeraciones import Estado
 from proformas.dominio.valores import Monto
 
-
-@dataclass(frozen=True)
-class AtributosFisicos:
-    peso_kg: float
-    talla: Talla | None = None
-
-    def __post_init__(self) -> None:
-        if self.peso_kg <= 0:
-            raise ValueError("El peso debe ser mayor que cero")
+TASAS_IVA_DISPONIBLES = (0.0, 15.0)
 
 
-@dataclass(frozen=True)
-class AtributosDigitales:
-    tamanio_mb: float
-
-    def __post_init__(self) -> None:
-        if self.tamanio_mb <= 0:
-            raise ValueError("El tamaño debe ser mayor que cero")
+def calcular_precio_sin_iva(
+    precio_ingresado: object, iva_pct: float, *, incluye_iva: bool
+) -> Monto:
+    """Normaliza el precio para almacenarlo siempre sin impuestos."""
+    precio = Monto(precio_ingresado)
+    if not incluye_iva or iva_pct == 0:
+        return precio
+    factor_iva = Decimal("1") + Decimal(str(iva_pct)) / Decimal("100")
+    return Monto(precio.root / factor_iva)
 
 
 class Producto(BaseModel):
@@ -32,7 +26,6 @@ class Producto(BaseModel):
         str_strip_whitespace=True,
         validate_assignment=True,
         extra="forbid",
-        arbitrary_types_allowed=True,
     )
     codigo: str
     nombre: str
@@ -40,11 +33,12 @@ class Producto(BaseModel):
     precio: Monto = Monto(0)
     iva_pct: float = 15.0
     estado: Estado = Estado.ACTIVO
-    extras: AtributosFisicos | AtributosDigitales | None = None
 
-    @field_validator("codigo")
+    @field_validator("codigo", mode="before")
     @classmethod
-    def validar_codigo(cls, valor: str) -> str:
+    def validar_codigo(cls, valor: object) -> object:
+        if isinstance(valor, str):
+            valor = valor.strip().upper()
         if not valor:
             raise ValueError("El código no puede estar vacío")
         return valor

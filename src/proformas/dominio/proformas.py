@@ -1,9 +1,11 @@
 """Agregado proforma y sus cálculos."""
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from proformas.dominio.clientes import Cliente
-from proformas.dominio.enumeraciones import Estado, TipoCliente
+from proformas.dominio.enumeraciones import Estado, Talla, TipoCliente
 from proformas.dominio.productos import Producto
 
 
@@ -12,6 +14,7 @@ class ItemProforma(BaseModel):
     producto: Producto
     cantidad: int
     tipo_cliente: TipoCliente | None = None
+    talla: Talla | None = None
 
     @field_validator("producto")
     @classmethod
@@ -46,7 +49,10 @@ class Proforma(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
     numero: str
     cliente: Cliente
+    fecha: date = Field(default_factory=date.today)
     items: list[ItemProforma] = Field(default_factory=list)
+    observaciones: str = ""
+    instrucciones_pago: str = ""
 
     @field_validator("numero")
     @classmethod
