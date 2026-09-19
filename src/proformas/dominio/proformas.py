@@ -61,9 +61,6 @@ class Proforma(BaseModel):
             raise ValueError("El número no puede estar vacío")
         return valor
 
-    def agregar_item(self, item: ItemProforma) -> None:
-        self.items = [*self.items, item]
-
     def subtotal(self) -> float:
         return sum((item.subtotal() for item in self.items), start=0.0)
 

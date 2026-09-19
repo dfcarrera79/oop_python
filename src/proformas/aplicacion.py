@@ -39,9 +39,6 @@ class AplicacionProformas:
     def actualizar_cliente(self, cliente: Cliente) -> None:
         self._clientes.actualizar(cliente)
 
-    def buscar_cliente(self, identificacion: RUC | str) -> Cliente | None:
-        return self._clientes.buscar(identificacion)
-
     def buscar_clientes(self, termino: str) -> list[Cliente]:
         return self._clientes.buscar_coincidencias(termino)
 
