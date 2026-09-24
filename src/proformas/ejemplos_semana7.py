@@ -1,12 +1,8 @@
-"""Ejemplos de TDA lineales, Repository y pruebas para la semana 7."""
-
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class Producto:
-    """Producto minimo para concentrar el ejemplo en las estructuras de datos."""
-
     nombre: str
     precio: float
     stock: int
